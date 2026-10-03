@@ -8,7 +8,10 @@ const server = new McpServer({ name: "phalanx", version: "0.1.0" });
 server.tool(
   "claim_resource",
   "Claim a resource before editing it. Always claim before editing, and call get_briefing first " +
-    "to see what's already claimed. Returns blocked with the current holder if someone else has it.",
+    "to see what's already claimed. Returns blocked with the current holder if someone else has it " +
+    "— call wait_for_resource rather than guessing at other work. A successful claim may still come " +
+    "back with a similarTo warning if your resource is semantically close to one someone else already " +
+    "holds (e.g. 'login-flow' vs 'auth'); that's a heads-up to coordinate, not a block.",
   {
     teamId: z.string(),
     resource: z.string().describe("Module-level name, e.g. 'auth', 'payments', 'ui', 'db'"),
@@ -24,10 +27,22 @@ server.tool(
 
 server.tool(
   "release_resource",
-  "Release a resource you previously claimed, so others can claim it.",
+  "Release a resource you previously claimed, so others can claim it. If another agent was waiting " +
+    "on it (via wait_for_resource), releasing hands it to them automatically.",
   { teamId: z.string(), resource: z.string(), agentId: z.string() },
   async (params) => {
     const result = await api.releaseResource(params);
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  }
+);
+
+server.tool(
+  "wait_for_resource",
+  "Call this when claim_resource returns blocked, instead of guessing at other work. Registers you " +
+    "to be given the resource automatically as soon as the current holder releases it.",
+  { teamId: z.string(), resource: z.string(), agentId: z.string() },
+  async (params) => {
+    const result = await api.waitForResource(params);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   }
 );

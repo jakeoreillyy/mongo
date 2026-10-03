@@ -2,6 +2,13 @@
 // with real in-memory state, so claim/conflict/release behave exactly like the
 // real thing will. Delete this file once A's server is live — nothing else
 // depends on it, everything talks to API_BASE_URL.
+//
+// similarTo and the waiter wake-up are mocked here per the plan's instruction
+// ("B and D mock similarTo, warning, waiting and woken in the contract shape
+// until A and C ship them"). The real versions are $vectorSearch (A) and a
+// change-stream wake-up (C); this stub just does the synchronous equivalent
+// so B's demo script can exercise the full contract shape without blocking
+// on either of them.
 import express from "express";
 
 type Claim = {
@@ -22,11 +29,47 @@ type Decision = {
   createdAt: number;
 };
 
+type Waiter = {
+  teamId: string;
+  resource: string;
+  agentId: string;
+  createdAt: number;
+};
+
 const claims = new Map<string, Claim>();
 const decisions: Decision[] = [];
+const waiters: Waiter[] = [];
 let nextDecisionId = 1;
 
 const key = (teamId: string, resource: string) => `${teamId}:${resource}`;
+
+// Stand-in for Vector Search: a fixed synonym table instead of real
+// embeddings. Covers the plan's own example (login-flow ~ auth).
+const SIMILAR: Record<string, string[]> = {
+  auth: ["login-flow", "login", "signin", "sso"],
+  payments: ["checkout", "billing"],
+  ui: ["frontend", "checkout-ui"],
+  db: ["database", "storage"],
+};
+
+function findSimilarHeld(teamId: string, resource: string, agentId: string): string | undefined {
+  const now = Date.now();
+  const related = new Set<string>(SIMILAR[resource] ?? []);
+  for (const [group, synonyms] of Object.entries(SIMILAR)) {
+    if (synonyms.includes(resource)) related.add(group);
+  }
+  for (const claim of claims.values()) {
+    if (
+      claim.teamId === teamId &&
+      claim.agentId !== agentId &&
+      claim.expiresAt > now &&
+      related.has(claim.resource)
+    ) {
+      return claim.resource;
+    }
+  }
+  return undefined;
+}
 
 const app = express();
 app.use(express.json());
@@ -51,7 +94,20 @@ app.post("/claims", (req, res) => {
 
   const expiresAt = now + (ttlSeconds ?? 300) * 1000;
   claims.set(k, { teamId, resource, agentId, task, createdAt: now, expiresAt });
-  return res.status(201).json({ status: "claimed", expiresAt });
+
+  const similarTo = findSimilarHeld(teamId, resource, agentId);
+  return res
+    .status(201)
+    .json(similarTo ? { status: "claimed", expiresAt, similarTo } : { status: "claimed", expiresAt });
+});
+
+app.post("/waiters", (req, res) => {
+  const { teamId, resource, agentId } = req.body ?? {};
+  if (!teamId || !resource || !agentId) {
+    return res.status(400).json({ error: "teamId, resource, agentId required" });
+  }
+  waiters.push({ teamId, resource, agentId, createdAt: Date.now() });
+  return res.status(201).json({ status: "waiting" });
 });
 
 app.delete("/claims/:resource", (req, res) => {
@@ -62,7 +118,28 @@ app.delete("/claims/:resource", (req, res) => {
     return res.status(404).json({ error: "no claim held by this agent" });
   }
   claims.delete(k);
-  return res.status(200).json({ status: "released" });
+
+  // Wake the oldest waiter for this resource, same as the real server's
+  // change-stream handler would: hand them the claim directly.
+  const waiterIdx = waiters.findIndex(
+    (w) => w.teamId === teamId && w.resource === req.params.resource
+  );
+  let woken: { agentId: string } | undefined;
+  if (waiterIdx !== -1) {
+    const [waiter] = waiters.splice(waiterIdx, 1);
+    const expiresAt = Date.now() + 300 * 1000;
+    claims.set(k, {
+      teamId: waiter.teamId,
+      resource: waiter.resource,
+      agentId: waiter.agentId,
+      task: "woken from wait_for_resource",
+      createdAt: Date.now(),
+      expiresAt,
+    });
+    woken = { agentId: waiter.agentId };
+  }
+
+  return res.status(200).json(woken ? { status: "released", woken } : { status: "released" });
 });
 
 app.get("/claims", (req, res) => {

@@ -1,6 +1,7 @@
-// Scripted demo per PHALANX-SPLIT.md "B: MCP server and demo agents" step 4.
-// Fixed order, short pauses, calls the same api-client every tool uses -
-// so this exercises the real claim/conflict/decision/briefing path end to end.
+// Scripted demo per PHALANX-SPLIT.md "B: MCP server and demo agents" step 5.
+// Fixed order, short pauses, calls the same api-client every tool uses - so
+// this exercises the real claim/conflict/wait/similarTo/decision/briefing
+// path end to end.
 import * as api from "./api-client.js";
 
 const TEAM_ID = process.env.TEAM_ID ?? "demo";
@@ -27,8 +28,13 @@ async function main() {
   }));
 
   await pause(500);
-  log("Agent 2", "claim ui (redirected)", await api.claimResource({
-    teamId: TEAM_ID, resource: "ui", agentId: "agent-2", task: "checkout UI",
+  log("Agent 2", "wait_for_resource auth (instead of guessing)", await api.waitForResource({
+    teamId: TEAM_ID, resource: "auth", agentId: "agent-2",
+  }));
+
+  await pause(800);
+  log("Agent 3", "claim login-flow (expect similarTo: auth)", await api.claimResource({
+    teamId: TEAM_ID, resource: "login-flow", agentId: "agent-3", task: "social login",
   }));
 
   await pause(800);
@@ -37,12 +43,15 @@ async function main() {
   }));
 
   await pause(500);
-  log("Agent 1", "release auth", await api.releaseResource({
+  log("Agent 1", "release auth (expect Agent 2 woken)", await api.releaseResource({
     teamId: TEAM_ID, resource: "auth", agentId: "agent-1",
   }));
 
+  await pause(500);
+  log("Agent 2", "list_claims (confirm auth was handed over)", await api.listClaims(TEAM_ID));
+
   await pause(800);
-  log("Agent 3", "get_briefing (joining fresh)", await api.getBriefing(TEAM_ID));
+  log("Agent 4", "get_briefing (joining fresh)", await api.getBriefing(TEAM_ID));
 }
 
 main().catch((err) => {

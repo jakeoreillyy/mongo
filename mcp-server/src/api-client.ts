@@ -5,7 +5,7 @@ import "dotenv/config";
 const BASE_URL = process.env.API_BASE_URL ?? "http://localhost:4000";
 
 export type ClaimResult =
-  | { status: "claimed"; expiresAt: number }
+  | { status: "claimed"; expiresAt: number; similarTo?: string }
   | { status: "blocked"; heldBy: string; task: string; expiresAt: number };
 
 export type Claim = {
@@ -53,10 +53,17 @@ export function claimResource(params: {
 
 export function releaseResource(params: { teamId: string; resource: string; agentId: string }) {
   const q = new URLSearchParams({ teamId: params.teamId, agentId: params.agentId });
-  return request<{ status: "released" } | { error: string }>(
+  return request<{ status: "released"; woken?: { agentId: string } } | { error: string }>(
     `/claims/${encodeURIComponent(params.resource)}?${q}`,
     { method: "DELETE" }
   );
+}
+
+export function waitForResource(params: { teamId: string; resource: string; agentId: string }) {
+  return request<{ status: "waiting" } | { error: string }>("/waiters", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
 }
 
 export function listClaims(teamId: string) {
