@@ -1,4 +1,6 @@
-// Shapes follow the HTTP contract in PHALANX-SPLIT.md.
+// Shapes follow the HTTP contract in PHALANX-SPLIT.md. The contract doesn't fix
+// a time format: B's stub sends epoch ms, Mongo docs serialise to ISO strings.
+export type Time = string | number
 
 export type Claim = {
   _id?: string
@@ -6,8 +8,8 @@ export type Claim = {
   resource: string
   agentId: string
   task: string
-  createdAt: string
-  expiresAt: string
+  createdAt: Time
+  expiresAt: Time
 }
 
 export type Decision = {
@@ -16,7 +18,7 @@ export type Decision = {
   module: string
   agentId: string
   text: string
-  createdAt: string
+  createdAt: Time
 }
 
 export type Conflict = {
@@ -25,7 +27,7 @@ export type Conflict = {
   agentId: string
   heldBy: string
   task?: string
-  createdAt: string
+  createdAt: Time
 }
 
 export type Briefing = {
@@ -40,14 +42,14 @@ export type Warning = {
   resource: string
   agentId: string
   similarTo: string | Pick<Claim, 'resource' | 'agentId'>
-  createdAt: string
+  createdAt: Time
 }
 
 export type Waiter = {
   teamId: string
   resource: string
   agentId: string
-  createdAt: string
+  createdAt: Time
 }
 
 export const similarResource = (w: Warning) => (typeof w.similarTo === 'string' ? w.similarTo : w.similarTo.resource)
@@ -60,7 +62,7 @@ export type PhalanxEvent =
   | ({ type: 'woken' } & Waiter)
   // A change stream delete only carries _id unless pre-images are enabled,
   // so resource and agentId may be missing.
-  | { type: 'released'; _id?: string; teamId?: string; resource?: string; agentId?: string; createdAt?: string }
+  | { type: 'released'; _id?: string; teamId?: string; resource?: string; agentId?: string; createdAt?: Time }
   | ({ type: 'blocked' } & Conflict)
   | ({ type: 'decision' } & Decision)
   | { type: 'briefing'; agentId: string; briefing: Briefing }

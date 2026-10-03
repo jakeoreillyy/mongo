@@ -70,9 +70,19 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-It replays the demo script by default. Add `?live` to the URL to read from the API (set `VITE_API_URL` in `dashboard/.env`, see `dashboard/.env.example`). The detailed operator view is at `?view=dashboard`.
+It replays the demo script by default. Add `?live` to the URL to read from the API on port 4000 (change `API_TARGET` in `dashboard/.env` if it runs elsewhere). The detailed operator view is at `?view=dashboard`.
 
-**API and MCP server:** _to be filled in once the server and MCP packages are merged._
+**MCP server and demo agents** (from `branch-b`, in `mcp-server/`):
+
+```sh
+cd mcp-server
+npm install
+npm run stub       # in-memory stand-in for the API on :4000, until A's server is live
+npm run demo       # scripted demo agents
+npm run mcp        # MCP server for Claude Code / Cursor
+```
+
+**API:** _to be filled in once A's server is merged._
 
 Credentials live in `.env` files, which are git-ignored. Never commit them.
 

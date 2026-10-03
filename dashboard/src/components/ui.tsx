@@ -50,7 +50,7 @@ export function Panel({ title, meta, children, className = '' }: {
   )
 }
 
-export function timeAgo(iso: string, now: number) {
+export function timeAgo(iso: string | number, now: number) {
   const s = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000))
   if (s < 5) return 'now'
   if (s < 60) return `${s}s`

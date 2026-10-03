@@ -51,7 +51,7 @@ function reducer(state: State, event: PhalanxEvent | { type: 'dismiss' } | { typ
   if (event.type === 'dismiss') return { ...state, alert: null }
   if (event.type === 'dismiss-warning') return { ...state, warning: null }
 
-  const at = ('createdAt' in event && event.createdAt) || new Date().toISOString()
+  const at = new Date(('createdAt' in event && event.createdAt) || Date.now()).toISOString()
   const feed = (): FeedItem[] => [{ id: ++seq, at, event }, ...state.feed].slice(0, 40)
 
   switch (event.type) {
@@ -59,7 +59,7 @@ function reducer(state: State, event: PhalanxEvent | { type: 'dismiss' } | { typ
       const claims = Object.fromEntries((event.claims ?? []).map((c) => [c.resource, c]))
       const agents: State['agents'] = {}
       for (const c of event.claims ?? []) {
-        agents[c.agentId] = { id: c.agentId, status: 'working', resource: c.resource, lastSeen: c.createdAt }
+        agents[c.agentId] = { id: c.agentId, status: 'working', resource: c.resource, lastSeen: new Date(c.createdAt).toISOString() }
       }
       return { ...empty, claims, agents }
     }

@@ -1,7 +1,7 @@
 import type { Briefing, Claim, Decision, PhalanxEvent } from './types'
 
 export const TEAM_ID = import.meta.env.VITE_TEAM_ID ?? 'demo'
-export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+export const API_URL = import.meta.env.VITE_API_URL ?? '/api'
 export const IS_LIVE = new URLSearchParams(location.search).has('live')
 
 type Emit = (event: PhalanxEvent) => void
