@@ -82,6 +82,17 @@ npm run demo       # scripted demo agents
 npm run mcp        # MCP server for Claude Code / Cursor
 ```
 
+**Database (Atlas):** put `MONGODB_URI=...` in a `.env` at the repo root, then:
+
+```sh
+cd db
+npm install
+npm run setup      # collections, $jsonSchema validators, unique + TTL indexes, Vector Search index (safe to re-run)
+npm run seed       # reset team "demo" before each demo run
+```
+
+Store `createdAt` and `expiresAt` as BSON dates: the TTL index ignores anything else, and the validator refuses it.
+
 **API:** _to be filled in once A's server is merged._
 
 Credentials live in `.env` files, which are git-ignored. Never commit them.
