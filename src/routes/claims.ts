@@ -5,10 +5,11 @@ export const claimsRouter = Router();
 
 // POST /claims — claim a resource
 claimsRouter.post("/", async (req: Request, res: Response) => {
-  const { teamId, resource, agentId, task, ttlSeconds } = req.body;
+  // ttlSeconds is optional; the MCP server only sends it when the agent asks
+  const { teamId, resource, agentId, task, ttlSeconds = 300 } = req.body;
 
-  if (!teamId || !resource || !agentId || !task || !ttlSeconds) {
-    res.status(400).json({ error: "Missing required fields: teamId, resource, agentId, task, ttlSeconds" });
+  if (!teamId || !resource || !agentId || !task) {
+    res.status(400).json({ error: "Missing required fields: teamId, resource, agentId, task" });
     return;
   }
 
