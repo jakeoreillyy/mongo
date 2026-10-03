@@ -11,7 +11,7 @@ export async function connectDb(): Promise<Db> {
 
   client = new MongoClient(uri);
   await client.connect();
-  db = client.db();
+  db = client.db(process.env.MONGODB_DB ?? "phalanx"); // same default as db/setup.ts and db/seed.ts
   console.log("Connected to MongoDB");
   return db;
 }

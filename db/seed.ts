@@ -17,7 +17,8 @@ async function main() {
   const client = new MongoClient(uri!)
   await client.connect()
   const db = client.db(process.env.MONGODB_DB ?? 'phalanx')
-  for (const name of ['claims', 'decisions', 'conflicts', 'waiters']) {
+  // Waiters first: the server hands each released claim to a waiter.
+  for (const name of ['waiters', 'claims', 'decisions', 'conflicts']) {
     const { deletedCount } = await db.collection(name).deleteMany({ teamId })
     console.log(`  ${name}: removed ${deletedCount}`)
   }
