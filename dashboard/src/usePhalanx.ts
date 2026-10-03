@@ -74,12 +74,16 @@ function reducer(state: State, event: PhalanxEvent | { type: 'dismiss' } | { typ
       }
     }
     case 'released': {
-      const { [event.resource]: _, ...claims } = state.claims
+      const held = event.resource
+        ? state.claims[event.resource]
+        : Object.values(state.claims).find((c) => c._id && c._id === event._id)
+      if (!held) return { ...state, feed: feed() }
+      const { [held.resource]: _, ...claims } = state.claims
       return {
         ...state,
         claims,
-        agents: touch(state, event.agentId, { status: 'idle', resource: undefined }, at),
-        feed: feed(),
+        agents: touch(state, held.agentId, { status: 'idle', resource: undefined }, at),
+        feed: [{ id: ++seq, at, event: { ...event, resource: held.resource, agentId: held.agentId } }, ...state.feed].slice(0, 40),
       }
     }
     case 'blocked': {

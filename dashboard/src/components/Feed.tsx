@@ -21,7 +21,7 @@ function Line({ item }: { item: FeedItem }) {
     case 'claimed':
       return <><AgentName id={e.agentId} /> claimed {res(e.resource)}</>
     case 'released':
-      return <><AgentName id={e.agentId} /> released {res(e.resource)}</>
+      return e.agentId && e.resource ? <><AgentName id={e.agentId} /> released {res(e.resource)}</> : <>A claim was released</>
     case 'blocked':
       return <><AgentName id={e.agentId} /> was blocked from {res(e.resource)}, held by <AgentName id={e.heldBy} /></>
     case 'decision':

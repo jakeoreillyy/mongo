@@ -1,6 +1,7 @@
 // Shapes follow the HTTP contract in PHALANX-SPLIT.md.
 
 export type Claim = {
+  _id?: string
   teamId: string
   resource: string
   agentId: string
@@ -57,7 +58,9 @@ export type PhalanxEvent =
   | ({ type: 'warning' } & Warning)
   | ({ type: 'waiting' } & Waiter)
   | ({ type: 'woken' } & Waiter)
-  | { type: 'released'; teamId: string; resource: string; agentId: string; createdAt?: string }
+  // A change stream delete only carries _id unless pre-images are enabled,
+  // so resource and agentId may be missing.
+  | { type: 'released'; _id?: string; teamId?: string; resource?: string; agentId?: string; createdAt?: string }
   | ({ type: 'blocked' } & Conflict)
   | ({ type: 'decision' } & Decision)
   | { type: 'briefing'; agentId: string; briefing: Briefing }
