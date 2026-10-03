@@ -6,3 +6,11 @@ data/raw/
 .DS_Store
 __pycache__/
 .venv/
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+terraform/*.pem
+terraform/terraform.tfvars
