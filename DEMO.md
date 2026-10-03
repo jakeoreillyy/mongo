@@ -23,28 +23,31 @@ Scroll to Setup. Click **Set up team**.
 
 ## 0:40 to 1:40, the agents (the money shot)
 
-Switch to the dashboard and start B's demo agents.
+Switch to the dashboard and start B's demo agents (`npm run demo` in `mcp-server/`). Each step waits for Enter, so press it as you start each line below.
 
-1. **Claim.** agent-1 claims `auth`, agent-2 claims `payments`.
+1. **Claim.** agent-1 claims `auth`, agent-2 claims `payments` (two presses).
    > "Before touching code, every agent claims the module."
 2. **Block.** agent-2 tries `auth`.
    > "Second claim on the same module. MongoDB's unique index rejects it. That E11000 duplicate key error *is* our conflict signal. No locks in app code, no race."
 3. **Wait.** agent-2 waits in line.
    > "Instead of guessing, it waits."
-4. **Warn.** agent-3 claims `login-flow`.
-   > "Different name, same area. Atlas Vector Search spots it and gives a heads-up. The unique index is the guarantee, Vector Search is the hint."
+4. **Crash.** agent-3 claims `search` for 15 seconds, then dies without releasing it.
+   > "Agents crash. This one just died holding `search`. Remember it, we'll come back to it."
 
-## 1:40 to 2:20, hand off and brief
+## 1:40 to 2:20, hand off, recover and brief
 
 5. **Decide and release.** agent-1 records "Auth uses JWT, not sessions" and releases `auth`.
 6. **Woken.** agent-2 is woken instantly.
    > "A change stream sees the release and wakes the waiting agent. No polling."
-7. **Brief.** A fresh agent joins and calls `get_briefing`.
+7. **Recover.** agent-5 claims `search` and gets it.
+   > "agent-3 never came back, but its claim had an expiry. The dead claim is cleared and agent-5 takes over. Nothing stays locked by a crashed agent."
+   (If you get here inside 15 seconds of step 4, the script waits out the remainder and says so.)
+8. **Brief.** A fresh agent joins and calls `get_briefing`.
    > "One aggregation, and it knows every claim and every decision."
 
 ## 2:20 to 2:50, why MongoDB
 
-> "All of this is one Atlas cluster. Unique index for the guarantee, Vector Search for the hint, change streams for the wake-up, TTL so a crashed agent never locks anything, schema validation so bad data is refused. No Redis, no broker, no second database."
+> "All of this is one Atlas cluster. Unique index for the guarantee, change streams for the wake-up, TTL so a crashed agent never locks anything, schema validation so bad data is refused. No Redis, no broker, no second database."
 
 ## 2:50 to 3:00, close
 
