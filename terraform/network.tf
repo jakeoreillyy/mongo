@@ -1,3 +1,24 @@
+# Resource Group — groups all Phalanx resources in the AWS console
+resource "aws_resourcegroups_group" "phalanx" {
+  name        = "${var.project_name}-stack"
+  description = "All AWS resources for the Phalanx hackathon project"
+
+  resource_query {
+    query = jsonencode({
+      ResourceTypeFilters = ["AWS::AllSupported"]
+      TagFilters = [{
+        Key    = "Project"
+        Values = [var.project_name]
+      }]
+    })
+  }
+
+  tags = {
+    Name    = "${var.project_name}-stack"
+    Project = var.project_name
+  }
+}
+
 # Use the default VPC — no need to create one for a hackathon
 data "aws_vpc" "default" {
   default = true
