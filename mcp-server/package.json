@@ -6,7 +6,8 @@
   "scripts": {
     "stub": "tsx src/stub-server.ts",
     "mcp": "tsx src/mcp-server.ts",
-    "demo": "tsx src/demo-agents.ts"
+    "demo": "tsx src/demo-agents.ts",
+    "mcp:check": "tsx src/mcp-client-check.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
