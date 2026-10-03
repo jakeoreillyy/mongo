@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { getDb } from "../db";
+import { findSimilarClaim } from "../vectorSearch";
 
 export const claimsRouter = Router();
 
@@ -23,7 +24,20 @@ claimsRouter.post("/", async (req: Request, res: Response) => {
 
   try {
     await claims.insertOne(doc);
-    res.status(201).json({ status: "claimed", expiresAt });
+    // Check for semantically similar claims (soft conflict warning)
+    const similar = await findSimilarClaim(teamId, resource, agentId);
+    if (similar) {
+      // Write a warning doc so the change stream / dashboard can see it
+      await db.collection("warnings").insertOne({
+        teamId, resource, agentId,
+        similarTo: { resource: similar.resource, agentId: similar.agentId },
+        similarity: similar.similarity,
+        createdAt: now,
+      }).catch(() => {}); // best-effort, don't fail the claim
+      res.status(201).json({ status: "claimed", expiresAt, similarTo: similar.resource });
+    } else {
+      res.status(201).json({ status: "claimed", expiresAt });
+    }
     return;
   } catch (err: any) {
     if (err.code !== 11000) throw err;

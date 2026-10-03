@@ -27,15 +27,10 @@ app.get("/health", (_req, res) => {
 // Serve dashboard static files (built by Vite into /app/dashboard-dist in Docker)
 const dashboardPath = path.join(__dirname, "..", "dashboard-dist");
 app.use(express.static(dashboardPath));
-app.get("*", (_req, res, next) => {
-  // Only serve index.html for non-API requests (SPA fallback)
-  if (_req.path.startsWith("/claims") || _req.path.startsWith("/decisions") ||
-      _req.path.startsWith("/briefing") || _req.path.startsWith("/events") ||
-      _req.path.startsWith("/waiters") || _req.path.startsWith("/health")) {
-    return next();
-  }
+// SPA fallback: serve index.html for any request that didn't match an API route
+app.use((_req, res) => {
   res.sendFile(path.join(dashboardPath, "index.html"), (err) => {
-    if (err) next();
+    if (err) res.status(404).json({ error: "Not found" });
   });
 });
 

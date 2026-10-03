@@ -8,7 +8,7 @@
         "mcp-server/src/mcp-server.ts"
       ],
       "env": {
-        "API_BASE_URL": "http://localhost:4000",
+        "API_BASE_URL": "http://34.252.81.205",
         "TEAM_ID": "demo"
       }
     }
