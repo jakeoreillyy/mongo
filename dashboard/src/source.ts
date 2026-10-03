@@ -5,21 +5,96 @@ export const API_URL = import.meta.env.VITE_API_URL ?? '/api'
 export const IS_LIVE = new URLSearchParams(location.search).has('live')
 
 type Emit = (event: PhalanxEvent) => void
-type Status = (connected: boolean) => void
+export type Via = 'stream' | 'polling' | 'replay'
+type Status = (connected: boolean, via?: Via) => void
 
-// Live: seed from GET /claims, then follow the change stream over SSE.
+const POLL_MS = 1000
+
+async function getJson<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`)
+  if (!res.ok) throw new Error(`${path} -> ${res.status}`)
+  return res.json()
+}
+
+const decisionKey = (d: Decision & { _id?: string }) => d.id ?? d._id ?? `${d.agentId}|${d.createdAt}|${d.text}`
+
+// Live: follow the change stream over SSE. Until /events is open, or whenever
+// it drops, poll /claims and /briefing and diff them into the same events.
+// Polling cannot see rejected claims, warnings or waiters; only the stream can.
 export function connectLive(emit: Emit, onStatus: Status): () => void {
-  let source: EventSource | null = null
   let closed = false
+  let streaming = false
+  let seeded = false
+  let timer: number | undefined
+  let held = new Map<string, Claim>()
+  const seen = new Set<string>()
 
-  fetch(`${API_URL}/claims?teamId=${TEAM_ID}`)
-    .then((res) => res.json() as Promise<Claim[]>)
-    .then((claims) => !closed && emit({ type: 'reset', claims }))
-    .catch(() => onStatus(false))
+  const poll = async () => {
+    const [claims, briefing] = await Promise.allSettled([
+      getJson<Claim[]>(`/claims?teamId=${TEAM_ID}`),
+      getJson<Briefing>(`/briefing?teamId=${TEAM_ID}`),
+    ])
+    if (closed || streaming) return
+    if (claims.status === 'rejected') return onStatus(false)
 
-  source = new EventSource(`${API_URL}/events?teamId=${TEAM_ID}`)
-  source.onopen = () => onStatus(true)
-  source.onerror = () => onStatus(false)
+    const next = new Map(claims.value.map((c) => [c.resource, c]))
+    const decisions = () => {
+      if (briefing.status === 'fulfilled') {
+        // The briefing lists newest first; replay unseen ones oldest first.
+        for (const d of [...briefing.value.decisions].reverse()) {
+          const k = decisionKey(d)
+          if (!seen.has(k)) {
+            seen.add(k)
+            emit({ type: 'decision', ...d })
+          }
+        }
+      }
+    }
+    if (!seeded) {
+      emit({ type: 'reset', claims: claims.value })
+      seeded = true
+      decisions()
+    } else {
+      decisions()
+      for (const [resource, c] of held) {
+        if (next.get(resource)?.agentId !== c.agentId) {
+          emit({ type: 'released', teamId: TEAM_ID, resource, agentId: c.agentId, createdAt: Date.now() })
+        }
+      }
+      for (const [resource, c] of next) {
+        if (held.get(resource)?.agentId !== c.agentId) emit({ type: 'claimed', ...c })
+      }
+    }
+    held = next
+
+    onStatus(true, 'polling')
+  }
+
+  const startPolling = () => {
+    if (timer !== undefined) return
+    seeded = false
+    seen.clear()
+    poll()
+    timer = window.setInterval(poll, POLL_MS)
+  }
+  const stopPolling = () => {
+    window.clearInterval(timer)
+    timer = undefined
+  }
+
+  startPolling()
+
+  const source = new EventSource(`${API_URL}/events?teamId=${TEAM_ID}`)
+  source.onopen = () => {
+    streaming = true
+    stopPolling()
+    onStatus(true, 'stream')
+  }
+  source.onerror = () => {
+    // EventSource keeps retrying on its own; poll in the meantime.
+    streaming = false
+    startPolling()
+  }
   source.onmessage = (msg) => {
     try {
       emit(JSON.parse(msg.data) as PhalanxEvent)
@@ -30,7 +105,8 @@ export function connectLive(emit: Emit, onStatus: Status): () => void {
 
   return () => {
     closed = true
-    source?.close()
+    stopPolling()
+    source.close()
   }
 }
 
@@ -138,7 +214,7 @@ export function connectMock(emit: Emit, onStatus: Status): () => void {
     timers.push(window.setTimeout(run, at + 9000))
   }
 
-  onStatus(true)
+  onStatus(true, 'replay')
   run()
   return () => timers.forEach(clearTimeout)
 }

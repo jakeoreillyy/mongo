@@ -1,3 +1,4 @@
+import type { Via } from '../source'
 import { EVENT_STEP, STORY } from '../story'
 import type { FeedItem } from '../usePhalanx'
 import { similarResource } from '../types'
@@ -39,10 +40,10 @@ function Line({ item }: { item: FeedItem }) {
   }
 }
 
-export function Feed({ feed, now }: { feed: FeedItem[]; now: number }) {
+export function Feed({ feed, now, via }: { feed: FeedItem[]; now: number; via?: Via }) {
   const items = feed.filter((i) => i.event.type !== 'reset')
   return (
-    <Panel title="Activity" meta="via change stream">
+    <Panel title="Activity" meta={via === 'polling' ? 'via polling' : via === 'replay' ? 'demo replay' : 'via change stream'}>
       {items.length === 0 ? (
         <div className="py-10 text-center text-[13px] text-faint">No activity yet</div>
       ) : (

@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useState } from 'react'
-import { IS_LIVE, connectLive, connectMock } from './source'
+import { IS_LIVE, type Via, connectLive, connectMock } from './source'
 import type { Briefing, Claim, Conflict, Decision, PhalanxEvent, Warning } from './types'
 
 export type FeedItem = { id: number; at: string; event: PhalanxEvent }
@@ -141,8 +141,16 @@ function reducer(state: State, event: PhalanxEvent | { type: 'dismiss' } | { typ
 export function usePhalanx() {
   const [state, dispatch] = useReducer(reducer, empty)
   const [connected, setConnected] = useState(false)
+  const [via, setVia] = useState<Via>(IS_LIVE ? 'polling' : 'replay')
 
-  useEffect(() => (IS_LIVE ? connectLive : connectMock)(dispatch, setConnected), [])
+  useEffect(
+    () =>
+      (IS_LIVE ? connectLive : connectMock)(dispatch, (ok, how) => {
+        setConnected(ok)
+        if (how) setVia(how)
+      }),
+    [],
+  )
 
   useEffect(() => {
     if (!state.alert) return
@@ -156,7 +164,7 @@ export function usePhalanx() {
     return () => clearTimeout(t)
   }, [state.warning])
 
-  return { state, connected, dispatch }
+  return { state, connected, via, dispatch }
 }
 
 export function useNow(intervalMs = 250) {

@@ -43,7 +43,7 @@ function Eyebrow({ children }: { children: ReactNode }) {
 }
 
 function Landing() {
-  const { state, connected } = usePhalanx()
+  const { state, connected, via } = usePhalanx()
 
   return (
     <div className="min-h-full overflow-x-clip">
@@ -98,7 +98,7 @@ function Landing() {
           </ProductShot>
           <div className="mt-6 flex items-center justify-center gap-2 text-[14px] text-faint">
             <span className={`size-1.5 rounded-full ${connected ? 'bg-leaf' : 'bg-alarm'}`} />
-            {IS_LIVE ? 'Live from MongoDB Atlas' : 'Replaying the demo script'}
+            {!IS_LIVE ? 'Replaying the demo script' : !connected ? 'Reconnecting…' : via === 'stream' ? 'Live from MongoDB Atlas' : 'Live, polling the API'}
           </div>
         </div>
 

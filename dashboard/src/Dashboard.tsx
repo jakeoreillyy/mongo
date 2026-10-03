@@ -8,7 +8,7 @@ import { useNow, usePhalanx } from './usePhalanx'
 
 // The detailed operator view, kept off the landing page. Open with ?view=dashboard.
 export function Dashboard() {
-  const { state, connected } = usePhalanx()
+  const { state, connected, via } = usePhalanx()
   const now = useNow()
 
   return (
@@ -23,7 +23,7 @@ export function Dashboard() {
           </a>
           <div className="flex items-center gap-2 text-[13px] text-mute">
             <span className={`size-1.5 rounded-full ${connected ? 'bg-leaf' : 'bg-alarm'}`} />
-            {IS_LIVE ? (connected ? 'Live' : 'Reconnecting') : 'Demo replay'}
+            {!IS_LIVE ? 'Demo replay' : !connected ? 'Reconnecting' : via === 'stream' ? 'Live · change stream' : 'Live · polling'}
           </div>
         </div>
       </nav>
@@ -41,7 +41,7 @@ export function Dashboard() {
         </div>
         <div className="space-y-4 lg:col-span-4">
           <Agents agents={state.agents} />
-          <Feed feed={state.feed} now={now} />
+          <Feed feed={state.feed} now={now} via={via} />
         </div>
       </main>
     </div>
