@@ -1,5 +1,7 @@
 import "dotenv/config";
 import express from "express";
+import cors from "cors";
+import path from "path";
 import { connectDb } from "./db";
 import { startChangeStreams } from "./changeStreams";
 import { claimsRouter } from "./routes/claims";
@@ -9,6 +11,7 @@ import { eventsRouter } from "./routes/events";
 import { waitersRouter } from "./routes/waiters";
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 app.use("/claims", claimsRouter);
@@ -19,6 +22,21 @@ app.use("/waiters", waitersRouter);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
+});
+
+// Serve dashboard static files (built by Vite into /app/dashboard-dist in Docker)
+const dashboardPath = path.join(__dirname, "..", "dashboard-dist");
+app.use(express.static(dashboardPath));
+app.get("*", (_req, res, next) => {
+  // Only serve index.html for non-API requests (SPA fallback)
+  if (_req.path.startsWith("/claims") || _req.path.startsWith("/decisions") ||
+      _req.path.startsWith("/briefing") || _req.path.startsWith("/events") ||
+      _req.path.startsWith("/waiters") || _req.path.startsWith("/health")) {
+    return next();
+  }
+  res.sendFile(path.join(dashboardPath, "index.html"), (err) => {
+    if (err) next();
+  });
 });
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
