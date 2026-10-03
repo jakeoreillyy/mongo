@@ -1,8 +1,32 @@
 # Official MongoDB MCP server (demo closer)
 
-Owner: B. Status: planned, blocked on A's Atlas connection details. This is the
-optional item from `PHALANX-SPLIT.md`: "connect the official MongoDB MCP
-server and ask Claude 'who's blocked right now?' straight against Atlas."
+Owner: B. Status: **done** — registered and verified read-only against the
+real cluster on 2026-10-03. This is the optional item from
+`PHALANX-SPLIT.md`: "connect the official MongoDB MCP server and ask Claude
+'who's blocked right now?' straight against Atlas."
+
+## Current setup
+
+- Teammate A created a dedicated `team-readonly` database user, scoped to the
+  `phalanx` database only. Verified empirically via
+  `db.runCommand({connectionStatus:1, showPrivileges:true})` before trusting
+  it: `authenticatedUserRoles` came back as exactly `{"role":"read","db":"phalanx"}`
+  — no write, no admin.
+- Real collections confirmed live on the cluster: `claims`, `conflicts`,
+  `decisions`, `waiters`, `_resume` — matches the data model in
+  `plan-phalanx.md` and `PHALANX-SPLIT.md`, including C's resume-token work.
+- Registered as a second MCP server, `mongodb-atlas`, via
+  `claude mcp add mongodb-atlas -s local -e MDB_MCP_CONNECTION_STRING=... -e MDB_MCP_READ_ONLY=true -- npx -y mongodb-mcp-server@latest --readOnly`.
+  **`-s local` scope on purpose** — this stores the connection string in the
+  per-user `~/.claude.json`, never in the repo's committed `.mcp.json`, so
+  nothing ends up in git. Confirmed `git status` stayed clean after adding it.
+- Each teammate who wants to use it needs to run the same `claude mcp add`
+  command themselves with their own copy of the `team-readonly` credentials —
+  it is intentionally not shared via the repo.
+- To use it: open a **new** Claude Code session in the repo (an already-open
+  session won't see a server added after it started) and ask natural-language
+  questions, e.g. "what's in the claims collection for team demo?" or "who's
+  holding auth right now?".
 
 ## What it is
 
@@ -16,9 +40,11 @@ write/admin tools such as `insert-many`, `update-many`, `delete-many`,
 `drop-collection`. Given Atlas Admin API credentials it can also expose
 cluster/project management tools, which we have no use for here.
 
-**Verify exact package name and CLI flags against the current README before
-the demo** — this writeup is accurate as of today's plan but the package is
-actively developed and flags can change.
+Confirmed against the current README (2026-10-03): connection string via the
+`MDB_MCP_CONNECTION_STRING` env var or a positional CLI argument; read-only
+via the `--readOnly` flag or `MDB_MCP_READ_ONLY` env var. We pass both the
+flag and the env var, and the database role is also read-only, so it's
+enforced in three independent places.
 
 ## Why we want it
 
@@ -44,46 +70,45 @@ It's explicitly B's item, not A's, C's, or D's.
   means even a bad natural-language instruction mid-demo can't write to or
   drop anything A/C built.
 
-## What we need from A (small ask, not a code change)
+## What we needed from A (done)
 
-- [ ] Atlas cluster is live (true from early in the day regardless of this)
-- [ ] A dedicated **read-only** database user scoped to the demo database —
-      not the app's own credentials
-- [ ] The resulting read-only connection string
+- [x] Atlas cluster live
+- [x] A dedicated **read-only** database user (`team-readonly`) scoped to the
+      `phalanx` database — not the app's own credentials
+- [x] The resulting read-only connection string, verified empirically rather
+      than taken on trust (see Current setup above)
 
-This only needs the cluster and collections to exist. It does **not** need
-A's Express API server to be finished, so it can be wired up in parallel with
-the rest of A's work, not strictly after it.
+This only needed the cluster and collections to exist, not A's Express API
+server finished — it was wired up in parallel with the rest of A's work.
 
-## Implementation plan
+## Setup steps (for any teammate who wants to use this themselves)
 
-1. Run it via `npx`, no need to add it as a project dependency:
+1. Get the `team-readonly` credentials from A (not committed anywhere).
+2. Register it locally — **not** project scope, so the credentials never hit
+   git:
    ```
-   npx -y mongodb-mcp-server@latest --connectionString "<read-only-uri>" --readOnly
+   claude mcp add mongodb-atlas -s local \
+     -e MDB_MCP_CONNECTION_STRING="mongodb+srv://team-readonly:<password>@cluster0.vmjdx6i.mongodb.net/phalanx?appName=Cluster0" \
+     -e MDB_MCP_READ_ONLY=true \
+     -- npx -y mongodb-mcp-server@latest --readOnly
    ```
-2. **Do not commit the connection string.** Register it with
-   `claude mcp add mongodb-atlas -s local -e MDB_MCP_CONNECTION_STRING=... -- npx -y mongodb-mcp-server@latest --readOnly`
-   using `-s local` (stored per-user, never written into the repo's
-   `.mcp.json`) — same "keep credentials out of the repo" rule the plan
-   already sets for `.env`. If the server reads the connection string from an
-   env var instead of a flag, put it in `mcp-server/.env` (already gitignored)
-   and reference it the same way.
-3. Smoke-test with a few read-only questions against seeded demo data ("list
-   the collections", "find all claims for team demo", "who holds auth right
-   now") in a real Claude Code/Desktop session — the same style of check we
-   already did for the `phalanx` server (`mcp-server/src/mcp-client-check.ts`
-   / `npm run mcp:check`), before relying on it live.
-4. Slot it into the demo script's "Why MongoDB" beat as the closing moment —
-   ask it live in front of judges, don't pre-script the exact output.
-5. Record a backup video of this step working, same as the rest of the demo.
+3. Open a **new** Claude Code session in the repo (a session started before
+   you ran step 2 won't see it) and ask it things directly, e.g. "what's in
+   the claims collection for team demo?" or "who's holding auth right now?".
+4. Still to do: slot it into the demo script's "Why MongoDB" closing beat
+   (ask it live, don't pre-script the output) and record a backup video of
+   it working, same as the rest of the demo.
 
 ## Risks / fallbacks
 
-- If A's cluster/read-only user isn't ready in time, this item simply doesn't
-  happen — it's optional, and the core demo (claim/conflict/decision/
-  briefing) doesn't depend on it.
+- This is still optional — the core demo (claim/conflict/decision/briefing)
+  never depended on it, so if it misbehaves on the day, drop it from the
+  script rather than debug live.
 - If `npx` install is slow or flaky on the day, pre-install/cache it earlier
   rather than relying on the network during judging.
+- Atlas Network Access needs the presenting device's IP allowed ahead of
+  time — confirm this on venue Wi-Fi before judging, not just on whatever
+  network it was first tested on.
 - Keep it read-only, no exceptions — a live MCP server with write access
   during a demo is a real risk: one bad instruction could mutate the
   collections A and C built right before judging.
