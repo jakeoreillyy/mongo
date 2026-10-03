@@ -1,6 +1,12 @@
-// C's router: mounts /decisions, /briefing, /events.
-// A's server imports this and does app.use(cRouter) once the skeleton is pushed.
+// C's router: /decisions, /briefing, /events, /waiters.
+// A's server does app.use(express.json()); app.use(cRouter); and calls startChangeStreams(db) once.
+import { Router } from "express";
+import decisions from "./decisions.js";
+import briefing from "./briefing.js";
+import events from "./events.js";
+import waiters from "./waiters.js";
 
-// TODO: create an express Router
-// TODO: mount decisions, briefing and events routers
-// TODO: export default the router
+const router = Router();
+router.use(decisions, briefing, events, waiters);
+
+export default router;

@@ -1,0 +1,20 @@
+{
+  "name": "phalanx",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:c": "tsx watch src/dev-server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "mongodb": "^6.10.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

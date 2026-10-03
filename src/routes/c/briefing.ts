@@ -1,8 +1,34 @@
-// GET /briefing?teamId&module   (module optional)
-// returns: { claims: [...], decisions: [...] }
+// GET /briefing?teamId&module   (module optional) -> { claims, decisions }
+import { Router } from "express";
+import { getDb } from "../../lib/db.js";
 
-// TODO: validate teamId
-// TODO: find active claims (expiresAt > now) for the team
-// TODO: aggregate last 10 decisions for team (+ module if given), sorted by createdAt desc
-//       keep the pipeline short and readable, it goes on screen in the demo
-// TODO: return { claims, decisions }
+const router = Router();
+
+router.get("/briefing", async (req, res) => {
+  const teamId = String(req.query.teamId ?? "");
+  const module = req.query.module ? String(req.query.module) : undefined;
+  if (!teamId) return res.status(400).json({ error: "teamId is required" });
+
+  const db = await getDb();
+
+  // Active claims: not expired (TTL can lag up to a minute, so check expiresAt ourselves).
+  const claims = await db
+    .collection("claims")
+    .find({ teamId, expiresAt: { $gt: new Date() } }, { projection: { embedding: 0 } })
+    .toArray();
+
+  // Last 10 decisions for the team, narrowed to the module if given.
+  const decisions = await db
+    .collection("decisions")
+    .aggregate([
+      { $match: { teamId, ...(module && { module }) } },
+      { $sort: { createdAt: -1 } },
+      { $limit: 10 },
+      { $project: { embedding: 0 } },
+    ])
+    .toArray();
+
+  res.json({ claims, decisions });
+});
+
+export default router;
