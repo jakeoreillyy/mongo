@@ -67,10 +67,12 @@ export function Setup({ onDone }: { onDone: () => void }) {
   const config = JSON.stringify(
     {
       mcpServers: {
+        // Same shape as .mcp.json on branch-b.
         phalanx: {
+          type: 'stdio',
           command: 'npx',
-          args: ['phalanx-mcp'],
-          env: { PHALANX_TEAM: slug, PHALANX_AGENT: `${members[0] ?? 'you'}-agent` },
+          args: ['tsx', 'mcp-server/src/mcp-server.ts'],
+          env: { API_BASE_URL: 'http://localhost:4000', TEAM_ID: slug },
         },
       },
     },
