@@ -2,11 +2,11 @@
 // Each message: id = event id, data = { type, teamId, ...doc }.
 // Reconnect with the Last-Event-ID header (EventSource does this itself) to replay missed events.
 import { Router } from "express";
-import { subscribe, eventsSince, PhalanxEvent } from "../../lib/changeStreams.js";
+import { subscribe, eventsSince, PhalanxEvent } from "../changeStreams";
 
-const router = Router();
+export const eventsRouter = Router();
 
-router.get("/events", (req, res) => {
+eventsRouter.get("/", (req, res) => {
   const teamId = String(req.query.teamId ?? "");
   if (!teamId) return res.status(400).json({ error: "teamId is required" });
 
@@ -30,5 +30,3 @@ router.get("/events", (req, res) => {
     unsubscribe();
   });
 });
-
-export default router;

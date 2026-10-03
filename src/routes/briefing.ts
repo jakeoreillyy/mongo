@@ -1,15 +1,15 @@
 // GET /briefing?teamId&module   (module optional) -> { claims, decisions }
 import { Router } from "express";
-import { getDb } from "../../lib/db.js";
+import { getDb } from "../db";
 
-const router = Router();
+export const briefingRouter = Router();
 
-router.get("/briefing", async (req, res) => {
+briefingRouter.get("/", async (req, res) => {
   const teamId = String(req.query.teamId ?? "");
   const module = req.query.module ? String(req.query.module) : undefined;
   if (!teamId) return res.status(400).json({ error: "teamId is required" });
 
-  const db = await getDb();
+  const db = getDb();
 
   // Active claims: not expired (TTL can lag up to a minute, so check expiresAt ourselves).
   const claims = await db
@@ -30,5 +30,3 @@ router.get("/briefing", async (req, res) => {
 
   res.json({ claims, decisions });
 });
-
-export default router;

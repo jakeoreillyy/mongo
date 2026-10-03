@@ -1,6 +1,7 @@
 // One change stream for the whole db, shared by all SSE clients.
 // Maps raw changes to contract events, hands freed resources to waiters, keeps a resume token.
-import { Db, ChangeStream, Document, MongoServerError } from "mongodb";
+import { Document, MongoServerError } from "mongodb";
+import { getDb } from "./db";
 
 export type PhalanxEvent = {
   id: string; // SSE event id; also the key for replay after a reconnect
@@ -30,10 +31,7 @@ const HANDOFF_TTL_MS = 5 * 60_000; // same as B's stub
 
 const handlers = new Set<{ teamId: string; handler: Handler }>();
 const buffer: PhalanxEvent[] = []; // recent events, for Last-Event-ID replay
-let stream: ChangeStream | undefined;
 let queue: Promise<unknown> = Promise.resolve(); // changes are handled one at a time, in order
-let closing = false;
-let database: Db;
 
 export function subscribe(teamId: string, handler: Handler): () => void {
   const sub = { teamId, handler };
@@ -60,14 +58,15 @@ function clean(doc: Document): Document {
   return rest;
 }
 
-const tokens = () => database.collection<{ _id: string; token: Document }>("_resume");
+const tokens = () => getDb().collection<{ _id: string; token: Document }>("_resume");
 
 // Hand a free resource to its oldest waiter: B's wait_for_resource promises the claim, not just a wake-up.
 // The unique index decides: if someone else holds it, the insert fails and the waiter stays queued for the next release.
 async function handToOldestWaiter(teamId: string, resource: string, baseId: string) {
-  const waiter = await database.collection("waiters").findOne({ teamId, resource }, { sort: { createdAt: 1 } });
+  const db = getDb();
+  const waiter = await db.collection("waiters").findOne({ teamId, resource }, { sort: { createdAt: 1 } });
   if (!waiter) return;
-  const claims = database.collection("claims");
+  const claims = db.collection("claims");
   const now = new Date();
   // Clear an expired holder the TTL monitor hasn't reached yet, as POST /claims does.
   await claims.deleteOne({ teamId, resource, expiresAt: { $lte: now } });
@@ -84,7 +83,7 @@ async function handToOldestWaiter(teamId: string, resource: string, baseId: stri
     if ((err as MongoServerError).code === 11000) return;
     throw err;
   }
-  await database.collection("waiters").deleteOne({ _id: waiter._id });
+  await db.collection("waiters").deleteOne({ _id: waiter._id });
   publish({ ...clean(waiter), id: `${baseId}:woken`, type: "woken", teamId });
 }
 
@@ -98,7 +97,7 @@ async function handleChange(change: Document) {
     return;
   }
   // A release handled before this insert may already have handed this waiter the resource.
-  if (type === "waiting" && !(await database.collection("waiters").findOne({ _id: doc._id }))) return;
+  if (type === "waiting" && !(await getDb().collection("waiters").findOne({ _id: doc._id }))) return;
   const id: string = change._id._data;
   publish({ ...clean(doc), id, type, teamId: doc.teamId });
 
@@ -108,7 +107,7 @@ async function handleChange(change: Document) {
 
 async function open() {
   const token = (await tokens().findOne({ _id: TOKEN_DOC_ID }))?.token; // survive a restart without missing events
-  stream = database.watch(
+  const stream = getDb().watch(
     [{ $match: { "ns.coll": { $in: WATCHED }, operationType: { $in: ["insert", "delete"] } } }],
     { fullDocumentBeforeChange: "whenAvailable", ...(token && { startAfter: token }) },
   );
@@ -120,7 +119,6 @@ async function open() {
   });
   stream.on("error", async (err) => {
     console.error("[changeStreams] stream error", err);
-    if (closing) return;
     await queue; // let in-flight changes save their tokens, so the reopen doesn't replay them
     // A token that fell off the oplog can't be resumed; drop it and start fresh.
     if (LOST_TOKEN_CODES.includes((err as MongoServerError).code as number)) {
@@ -133,7 +131,6 @@ async function open() {
 // Keep retrying: a failed attempt (e.g. still offline) schedules the next one.
 function reopen() {
   setTimeout(() => {
-    if (closing) return;
     open().catch((err) => {
       console.error("[changeStreams] reopen failed, retrying", err);
       reopen();
@@ -141,9 +138,9 @@ function reopen() {
   }, 1000);
 }
 
-export async function startChangeStreams(db: Db) {
-  database = db;
-  closing = false;
+// Call once, after connectDb().
+export async function startChangeStreams() {
+  const db = getDb();
   // Pre-images let us see teamId/resource of a deleted claim (including TTL expiries). The setting lives on the
   // collection: create claims with it if setup hasn't run yet (setup's collMod keeps it), and the seed must not drop claims.
   const preImages = { changeStreamPreAndPostImages: { enabled: true } };
@@ -154,11 +151,4 @@ export async function startChangeStreams(db: Db) {
       console.warn("[changeStreams] could not enable pre-images on claims, so releases won't be seen (user lacks collMod?):", err.message);
     });
   await open();
-}
-
-export async function stopChangeStreams() {
-  closing = true;
-  await stream?.close();
-  await queue; // finish in-flight changes so the last token is saved
-  stream = undefined;
 }

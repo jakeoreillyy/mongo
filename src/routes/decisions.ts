@@ -2,11 +2,11 @@
 // GET  /decisions/:id/lineage?teamId  -> the supersedes chain ("why JWT?")
 import { Router } from "express";
 import { ObjectId } from "mongodb";
-import { getDb } from "../../lib/db.js";
+import { getDb } from "../db";
 
-const router = Router();
+export const decisionsRouter = Router();
 
-router.post("/decisions", async (req, res) => {
+decisionsRouter.post("/", async (req, res) => {
   const { teamId, module, agentId, text, supersedes } = req.body ?? {};
   for (const [k, v] of Object.entries({ teamId, module, agentId, text })) {
     if (typeof v !== "string" || !v.trim()) return res.status(400).json({ error: `${k} is required` });
@@ -16,19 +16,17 @@ router.post("/decisions", async (req, res) => {
     if (typeof supersedes !== "string" || !ObjectId.isValid(supersedes)) return res.status(400).json({ error: "supersedes must be a decision id" });
     doc.supersedes = new ObjectId(supersedes);
   }
-  const db = await getDb();
-  const { insertedId } = await db.collection("decisions").insertOne(doc);
+  const { insertedId } = await getDb().collection("decisions").insertOne(doc);
   res.status(201).json({ id: String(insertedId) });
 });
 
 // Optional lineage: walk the supersedes chain with $graphLookup.
-router.get("/decisions/:id/lineage", async (req, res) => {
+decisionsRouter.get("/:id/lineage", async (req, res) => {
   const teamId = String(req.query.teamId ?? "");
   if (!teamId || !ObjectId.isValid(req.params.id)) {
     return res.status(400).json({ error: "teamId and a valid id are required" });
   }
-  const db = await getDb();
-  const [result] = await db
+  const [result] = await getDb()
     .collection("decisions")
     .aggregate([
       { $match: { _id: new ObjectId(req.params.id), teamId } },
@@ -51,5 +49,3 @@ router.get("/decisions/:id/lineage", async (req, res) => {
   if (!result) return res.status(404).json({ error: "not found" });
   res.json(result);
 });
-
-export default router;

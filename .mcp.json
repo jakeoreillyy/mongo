@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "phalanx": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "tsx",
+        "mcp-server/src/mcp-server.ts"
+      ],
+      "env": {
+        "API_BASE_URL": "http://localhost:4000",
+        "TEAM_ID": "demo"
+      }
+    }
+  }
+}
