@@ -39,6 +39,9 @@ export async function fetchBriefing(): Promise<Briefing> {
   return res.json()
 }
 
+// Where the mock replay is in its loop, so the landing page can show progress.
+export const replay = { start: 0, total: 1 }
+
 // Mock: replays B's scripted demo on a loop so the dashboard can be built and
 // rehearsed with no backend.
 const TTL_SECONDS = 90
@@ -130,6 +133,8 @@ export function connectMock(emit: Emit, onStatus: Status): () => void {
       at += delay
       timers.push(window.setTimeout(() => emit(step()), at))
     }
+    replay.start = Date.now()
+    replay.total = at + 9000
     timers.push(window.setTimeout(run, at + 9000))
   }
 
