@@ -1,0 +1,36 @@
+{
+  "name": "phalanx",
+  "version": "1.0.0",
+  "description": "Shared coordination layer for AI agent teams, backed by MongoDB",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "setup": "tsx src/setup.ts",
+    "seed": "tsx src/seed.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jakeoreillyy/mongo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jakeoreillyy/mongo/issues"
+  },
+  "homepage": "https://github.com/jakeoreillyy/mongo#readme",
+  "dependencies": {
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1",
+    "mongodb": "^7.7.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
