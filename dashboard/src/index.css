@@ -1,0 +1,66 @@
+@import 'tailwindcss';
+
+/* Soft dark, product-app feel: charcoal not black, hairline borders, colour
+   used for meaning only (green = held, red = collision). */
+@theme {
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+
+  --color-ink: #191a1d;
+  --color-panel: #202125;
+  --color-raised: #27282d;
+  --color-edge: rgb(255 255 255 / 0.07);
+  --color-line: rgb(255 255 255 / 0.12);
+  --color-fg: #e9e9eb;
+  --color-mute: #a1a3a9;
+  --color-faint: #6e7077;
+  --color-leaf: #3ecf8e;
+  --color-alarm: #f2555a;
+  --color-setup: #5b9cf5;
+  --color-claim: #3ecf8e;
+  --color-block: #f2555a;
+  --color-warn: #f5b14c;
+  --color-handoff: #a78bfa;
+  --color-brief: #4cc9f0;
+}
+
+@keyframes hit {
+  0% { background-color: rgb(242 85 90 / 0.16); }
+  100% { background-color: rgb(242 85 90 / 0.04); }
+}
+
+@keyframes nudge {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+@keyframes enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.hit {
+  animation: hit 1.2s ease-out forwards, nudge 0.3s ease-in-out 2;
+}
+
+.enter {
+  animation: enter 0.25s ease-out;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 56px;
+}
